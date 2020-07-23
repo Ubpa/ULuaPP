@@ -9,7 +9,7 @@ Ubpa_InitUCMake()
 Ubpa_InitProject()
 
 Ubpa_AddDep(ULua 0.1.0)
-Ubpa_AddDep(USRefl 0.4.1)
+Ubpa_AddDep(USRefl 0.4.3)
 Ubpa_AddDep(UTemplate 0.4.6)
 
 Ubpa_AddSubDirsRec(src)
