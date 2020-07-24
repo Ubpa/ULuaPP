@@ -196,6 +196,21 @@ namespace Ubpa::ULuaPP {
 			(std::apply([&](auto... funcs) {
 				//type.set_function(std::get<0>(std::tuple{ funcs... }).name, sol::overload(funcs.value...));
 				type[std::get<0>(std::tuple{ funcs... }).name] = sol::overload(funcs.value...);
+				constexpr bool needPostfix = sizeof...(funcs) > 0;
+				USRefl::ElemList{ funcs... }.ForEach([&, idx = static_cast<size_t>(0)](auto func)mutable{
+					std::string name = std::string(func.name) + (needPostfix ? ("_" + std::to_string(idx)) : "");
+					sol::table typeinfo_type_fields_field = typeinfo_type_fields[name].get_or_create<sol::table>();
+					sol::table typeinfo_type_fields_field_attrs = typeinfo_type_fields_field["attrs"].get_or_create<sol::table>();
+					if constexpr (func.attrs.size > 0) {
+						func.attrs.ForEach([&](auto attr) {
+							if constexpr (attr.has_value)
+								typeinfo_type_fields_field_attrs[attr.name] = attr.value;
+							else
+								typeinfo_type_fields_field_attrs[attr.name] = true; // default
+						});
+					}
+					idx++;
+				});
 			}, funcLists.elems), ...);
 		}, overloadFuncListTuple);
 
