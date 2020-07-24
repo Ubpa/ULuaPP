@@ -29,12 +29,6 @@ struct TypeInfo<Point> : TypeInfoBase<Point> {
 };
 
 int main() {
-	constexpr auto overloadFuncListTuple = Ubpa::ULuaPP::detail::GetOverload<Point>();
-	//constexpr auto s = num.size;
-	//cout << num << endl;
-
-	void(*f)(Point*) = [](Point* p) { new(p)Point; };
-
 	char buff[256];
 	int error;
 	lua_State* L = luaL_newstate(); /* opens Lua */
@@ -56,17 +50,6 @@ print(USRefl_TypeInfo.Point.fields.y.attrs.info)           -- USRefl type attrs
 	cout << code << endl
 		<< "----------------------------" << endl;
 	lua.script(code);
-
-	constexpr auto t = Ubpa::USRefl::TypeInfo<Point>::fields.Accumulate(
-		std::array<size_t, Ubpa::USRefl::TypeInfo<Point>::fields.size>{},
-		[&, idx = 0](auto acc, auto field) mutable {
-		if (field.name == "constructor")
-			acc[idx] = idx;
-		else
-			acc[idx] = static_cast<size_t>(-1);
-		idx++;
-		return acc;
-	});
 
 	while (fgets(buff, sizeof(buff), stdin) != NULL) {
 		error = luaL_loadstring(L, buff) || lua_pcall(L, 0, 0, 0);
