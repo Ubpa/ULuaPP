@@ -194,8 +194,29 @@ namespace Ubpa::ULuaPP {
 		constexpr auto overloadFuncListTuple = detail::GetOverload<T>();
 		std::apply([&](auto... funcLists) {
 			(std::apply([&](auto... funcs) {
+				auto packedFuncs = sol::overload(funcs.value...);
 				//type.set_function(std::get<0>(std::tuple{ funcs... }).name, sol::overload(funcs.value...));
-				type[std::get<0>(std::tuple{ funcs... }).name] = sol::overload(funcs.value...);
+				auto name = std::get<0>(std::tuple{ funcs... }).name;
+				if (name == "operator+")
+					type[sol::meta_function::addition] = packedFuncs;
+				else if (name == "operator-")
+					type[sol::meta_function::subtraction] = packedFuncs;
+				else if (name == "operator*")
+					type[sol::meta_function::multiplication] = packedFuncs;
+				else if (name == "operator/")
+					type[sol::meta_function::division] = packedFuncs;
+				else if (name == "operator<")
+					type[sol::meta_function::less_than] = packedFuncs;
+				else if (name == "operator<=")
+					type[sol::meta_function::less_than_or_equal_to] = packedFuncs;
+				else if (name == "operator==")
+					type[sol::meta_function::equal_to] = packedFuncs;
+				else if (name == "operator[]")
+					type[sol::meta_function::index] = packedFuncs;
+				else if (name == "operator()")
+					type[sol::meta_function::call] = packedFuncs;
+				else
+					type[name] = packedFuncs;
 				constexpr bool needPostfix = sizeof...(funcs) > 0;
 				USRefl::ElemList{ funcs... }.ForEach([&, idx = static_cast<size_t>(0)](auto func)mutable{
 					std::string name = std::string(func.name) + (needPostfix ? ("_" + std::to_string(idx)) : "");

@@ -16,6 +16,12 @@ struct [[size(8)]] Point {
 	float Min() { return x < y ? x : y; }
 	[[number(520)]]
 	float Min(float z) { return x < y ? (x < z ? x : z) : (y < z ? y : z); }
+	Point Add(const Point& rhs) const {
+		return { x + rhs.x, y + rhs.y };
+	}
+	Point operator-(const Point& rhs) const {
+		return { x - rhs.x, y - rhs.y };
+	}
 };
 
 template<>
@@ -28,7 +34,9 @@ struct TypeInfo<Point> : TypeInfoBase<Point> {
 		Field{"Sum", static_cast<float(Point::*)()>(&Point::Sum)},
 		Field{"Sum", static_cast<float(Point::*)(float)>(&Point::Sum)},
 		Field{"Min", static_cast<float(Point::*)()>(&Point::Min), AttrList{ Attr{ "number", 1024 } }},
-		Field{"Min", static_cast<float(Point::*)(float)>(&Point::Min), AttrList{ Attr{ "number", 520 } }}
+		Field{"Min", static_cast<float(Point::*)(float)>(&Point::Min), AttrList{ Attr{ "number", 520 } }},
+		Field{"Add", &Point::Add},
+		Field{"operator-", &Point::operator-}
 	};
 
 	static constexpr AttrList attrs = {
@@ -60,6 +68,10 @@ print(p0:Min())                                            -- non-static member 
 print(p0:Min(-1))                                          -- non-static member function overload
 print(USRefl_TypeInfo.Point.fields.Min_0.attrs.number)     -- non-static member function overload
 print(USRefl_TypeInfo.Point.fields.Min_1.attrs.number)     -- non-static member function overload
+p2 = p0:Add(p1)                                            -- usertype argument
+print(p2.x, p2.y)
+p3 = p0 - p1                                               -- meta function
+print(p3.x, p3.y)
 )";
 	cout << code << endl
 		<< "----------------------------" << endl;
