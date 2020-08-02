@@ -10,7 +10,9 @@
 namespace Ubpa::ULuaPP::detail {
 	struct NameInfo {
 		NameInfo(std::string_view name) {
-			size_t cur = name[0] == 's' ? 6 : 5;
+			size_t cur = name[0] == 's' ? 6 // struct
+				: name[0] == 'c' ? 5        // class
+				: 4;                        // enum
 			std::string str;
 			while (++cur < name.size()) {
 				if (name[cur] == ':') {
@@ -44,7 +46,12 @@ namespace Ubpa::ULuaPP::detail {
 				return std::tuple_cat(acc, std::tuple{ field.value });
 			}
 		);
-		return std::apply([](auto...elems) { return sol::initializers(elems...); }, constructors);
+		if constexpr (std::tuple_size_v<std::decay_t<decltype(constructors)>> > 0)
+			return std::apply([](auto...elems) { return sol::initializers(elems...); }, constructors);
+		else {
+			static_assert(std::is_default_constructible_v<T>);
+			return sol::initializers(USRefl::WrapConstructor<T()>());
+		}
 	}
 
 	template<typename T>
@@ -149,7 +156,7 @@ namespace Ubpa::ULuaPP::detail {
 
 		return funcList;
 	}
-
+	
 	template<typename T, size_t... Ns, size_t... Ms>
 	constexpr auto GetOverloadFuncListTuple(std::index_sequence<Ns...>, std::index_sequence<Ms...>) {
 		constexpr size_t OverloadNum = sizeof...(Ms);
@@ -165,22 +172,16 @@ namespace Ubpa::ULuaPP::detail {
 			std::make_index_sequence<std::get<1>(funcNumOverloadNum)>{}
 		);
 	}
-}
 
-namespace Ubpa::ULuaPP {
 	template<typename T>
-	void Register(lua_State* L) {
+	void RegisterClass(lua_State* L) {
 		sol::state_view lua(L);
 		sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
 		detail::NameInfo nameInfo(Ubpa::USRefl::TypeInfo<T>::name);
 		
 		sol::usertype<T> type = lua.new_usertype<T>(nameInfo.rawName,
 			detail::GetInits<T>(std::make_index_sequence<Ubpa::USRefl::TypeInfo<T>::fields.size>{}));
-		USRefl::TypeInfo<T>::DFS_ForEach([&](auto t, size_t) {
-			t.fields.ForEach([&](auto field) {
-				type[field.name] = field.value;
-			});
-		});
+
 		sol::table typeinfo_type = typeinfo[nameInfo.rawName].get_or_create<sol::table>();
 		sol::table typeinfo_type_attrs = typeinfo_type["attrs"].get_or_create<sol::table>();
 		sol::table typeinfo_type_fields = typeinfo_type["fields"].get_or_create<sol::table>();
@@ -195,7 +196,6 @@ namespace Ubpa::ULuaPP {
 		std::apply([&](auto... funcLists) {
 			(std::apply([&](auto... funcs) {
 				auto packedFuncs = sol::overload(funcs.value...);
-				//type.set_function(std::get<0>(std::tuple{ funcs... }).name, sol::overload(funcs.value...));
 				auto name = std::get<0>(std::tuple{ funcs... }).name;
 				if (name == "operator+")
 					type[sol::meta_function::addition] = packedFuncs;
@@ -239,6 +239,8 @@ namespace Ubpa::ULuaPP {
 		USRefl::TypeInfo<T>::DFS_ForEach([&](auto t, size_t) {
 			t.fields.ForEach([&](auto field) {
 				if constexpr (!field.is_func) {
+					type[field.name] = field.value;
+
 					sol::table typeinfo_type_fields_field = typeinfo_type_fields[field.name].get_or_create<sol::table>();
 					sol::table typeinfo_type_fields_field_attrs = typeinfo_type_fields_field["attrs"].get_or_create<sol::table>();
 					if constexpr (field.attrs.size > 0) {
@@ -252,5 +254,31 @@ namespace Ubpa::ULuaPP {
 				}
 			});
 		});
+	}
+
+	template<typename T>
+	void RegisterEnum(lua_State* L) {
+		sol::state_view lua(L);
+		detail::NameInfo nameInfo(Ubpa::USRefl::TypeInfo<T>::name);
+		//sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
+		constexpr auto nvs = USRefl::TypeInfo<T>::fields.Accumulate(
+			std::tuple<>{},
+			[](auto acc, auto field) {
+				return std::tuple_cat(acc, std::tuple{ field.name, field.value });
+			}
+		);
+		std::apply([&](auto... values) {
+			lua.new_enum(nameInfo.rawName, values...);
+		}, nvs);
+	}
+}
+
+namespace Ubpa::ULuaPP {
+	template<typename T>
+	void Register(lua_State* L) {
+		if constexpr (std::is_enum_v<T>)
+			detail::RegisterEnum<T>(L);
+		else
+			detail::RegisterClass<T>(L);
 	}
 }
