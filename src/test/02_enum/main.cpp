@@ -3,22 +3,36 @@
 using namespace Ubpa::USRefl;
 using namespace std;
 
-enum class Color {
-	RED,
-	GREEN,
-	BLUE
+enum class [[meta(520)]] Color {
+	RED [[meta("a")]],
+	GREEN [[meta("b")]],
+	BLUE [[meta("c")]]
 };
 
 template<>
 struct Ubpa::USRefl::TypeInfo<Color>
 	: Ubpa::USRefl::TypeInfoBase<Color>
 {
-	static constexpr AttrList attrs = {};
+	static constexpr AttrList attrs = {
+		Attr{"meta", 520},
+	};
 
 	static constexpr FieldList fields = {
-		Field{"RED", Color::RED},
-		Field{"GREEN", Color::GREEN},
-		Field{"BLUE", Color::BLUE},
+		Field{"RED", Color::RED,
+			AttrList{
+				Attr{"meta", "a"},
+			}
+		},
+		Field{"GREEN", Color::GREEN,
+			AttrList{
+				Attr{"meta", "b"},
+			}
+		},
+		Field{"BLUE", Color::BLUE,
+			AttrList{
+				Attr{"meta", "c"},
+			}
+		},
 	};
 };
 
@@ -35,6 +49,10 @@ int main() {
 print(Color.RED)
 print(Color.GREEN)
 print(Color.BLUE)
+print(USRefl_TypeInfo.Color.attrs.meta)
+print(USRefl_TypeInfo.Color.fields.RED.attrs.meta)
+print(USRefl_TypeInfo.Color.fields.GREEN.attrs.meta)
+print(USRefl_TypeInfo.Color.fields.BLUE.attrs.meta)
 )";
 	cout << code << endl
 		<< "----------------------------" << endl;

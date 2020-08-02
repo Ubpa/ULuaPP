@@ -56,7 +56,6 @@ int main() {
 	int error;
 	lua_State* L = luaL_newstate(); /* opens Lua */
 	luaL_openlibs(L); /* opens the standard libraries */
-
 	Ubpa::ULuaPP::Register<Point>(L);
 	sol::state_view lua(L);
 	const char code[] = R"(

@@ -260,7 +260,31 @@ namespace Ubpa::ULuaPP::detail {
 	void RegisterEnum(lua_State* L) {
 		sol::state_view lua(L);
 		detail::NameInfo nameInfo(Ubpa::USRefl::TypeInfo<T>::name);
-		//sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
+		sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
+		sol::table typeinfo_enum = typeinfo[nameInfo.rawName].get_or_create<sol::table>();
+		sol::table typeinfo_enum_attrs = typeinfo_enum["attrs"].get_or_create<sol::table>();
+		sol::table typeinfo_enum_fields = typeinfo_enum["fields"].get_or_create<sol::table>();
+
+		USRefl::TypeInfo<T>::attrs.ForEach([&](auto attr) {
+			if constexpr (attr.has_value)
+				typeinfo_enum_attrs[attr.name] = attr.value;
+			else
+				typeinfo_enum_attrs[attr.name] = true; // default
+		});
+
+		USRefl::TypeInfo<T>::fields.ForEach(
+			[&](auto field) {
+				sol::table typeinfo_enum_fields_field = typeinfo_enum_fields[field.name].get_or_create<sol::table>();
+				sol::table typeinfo_type_fields_field_attrs = typeinfo_enum_fields_field["attrs"].get_or_create<sol::table>();
+				field.attrs.ForEach([&](auto attr) {
+					if constexpr (attr.has_value)
+						typeinfo_type_fields_field_attrs[attr.name] = attr.value;
+					else
+						typeinfo_type_fields_field_attrs[attr.name] = true; // default
+				});
+			}
+		);
+
 		constexpr auto nvs = USRefl::TypeInfo<T>::fields.Accumulate(
 			std::tuple<>{},
 			[](auto acc, auto field) {
