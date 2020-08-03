@@ -34,13 +34,13 @@ namespace Ubpa::ULuaPP::detail {
 
 	template<typename T, size_t... Ns>
 	constexpr auto GetInits(std::index_sequence<Ns...>) {
-		constexpr auto masks = Ubpa::USRefl::TypeInfo<T>::fields.Accumulate(
-			std::array<bool, Ubpa::USRefl::TypeInfo<T>::fields.size>{},
+		constexpr auto masks = USRefl::TypeInfo<T>::fields.Accumulate(
+			std::array<bool, USRefl::TypeInfo<T>::fields.size>{},
 			[idx = 0](auto&& acc, auto field) mutable {
 			acc[idx++] = field.name == USRefl::Name::constructor;
 			return std::forward<decltype(acc)>(acc);
 		});
-		constexpr auto constructors = Ubpa::USRefl::TypeInfo<T>::fields.template Accumulate<masks[Ns]...>(
+		constexpr auto constructors = USRefl::TypeInfo<T>::fields.template Accumulate<masks[Ns]...>(
 			std::tuple<>{},
 			[](auto acc, auto field) {
 				return std::tuple_cat(acc, std::tuple{ field.value });
@@ -54,133 +54,93 @@ namespace Ubpa::ULuaPP::detail {
 			return sol::no_constructor;
 	}
 
-	template<typename T>
-	constexpr auto GetFuncNumOverloadNum() {
-		constexpr auto funcFields = Ubpa::USRefl::TypeInfo<T>::DFS_Acc(
-			USRefl::ElemList<>{},
-			[](auto acc, auto baseType, size_t) {
-				return baseType.fields.Accumulate(acc, [](auto acc, auto field) {
-					if constexpr (field.is_func)
-						return acc.Push(field);
-					else
+	// sizeof...(Ns) is the field number
+	template<typename T, typename Acc, size_t... Ns, size_t... Indices>
+	constexpr auto GetOverloadFuncListTupleRec(Acc acc, std::index_sequence<Ns...>, std::index_sequence<Indices...>) {
+		if constexpr (sizeof...(Indices) > 0) {
+			using IST = USRefl::detail::IntegerSequenceTraits<std::index_sequence<Indices...>>;
+			if constexpr (IST::head != static_cast<size_t>(-1)) {
+				constexpr auto masks = USRefl::TypeInfo<T>::fields.Accumulate(
+					std::array<bool, USRefl::TypeInfo<T>::fields.size>{},
+					[idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
+						acc[idx++] = field.name == USRefl::TypeInfo<T>::fields.template Get<IST::head>().name;
 						return acc;
-				});
-			}
-		);
-
-		constexpr auto overloadNames = funcFields.Accumulate(
-			std::array<std::string_view, funcFields.size>{},
-			[idx = static_cast<size_t>(0)](auto acc, auto func) mutable {
-			if (func.name != USRefl::Name::constructor) {
-				acc[idx] = func.name;
-				for (size_t i = 0; i < idx; i++) {
-					if (func.name == acc[i]) {
-						acc[idx] = "";
-						break;
 					}
-				}
+				);
+				constexpr auto funclist = USRefl::TypeInfo<T>::fields.template Accumulate<masks[Ns]...>(
+					USRefl::ElemList<>{},
+					[](auto acc, auto func) {
+						return acc.Push(func);
+					}
+				);
+				return GetOverloadFuncListTupleRec<T>(
+					std::tuple_cat(acc, std::tuple{ funclist }),
+					std::index_sequence<Ns...>{},
+					IST::tail
+				);
 			}
 			else
-				acc[idx] = "";
-			idx++;
-			return acc;
+				return GetOverloadFuncListTupleRec<T>(
+					acc,
+					std::index_sequence<Ns...>{},
+					IST::tail
+				);
 		}
-		);
-
-		constexpr auto overloadNum = std::apply([](auto... names) {
-				return (0 + ... + static_cast<size_t>(!names.empty()));
-			}, overloadNames);
-
-		return std::tuple{ funcFields.size, overloadNum };
+		else
+			return acc;
 	}
 
-	template<typename T, size_t OverloadNum, size_t Index, size_t... Ns>
-	constexpr auto GetOverloadFuncListAt(std::index_sequence<Ns...>) {
-		constexpr auto funcFields = Ubpa::USRefl::TypeInfo<T>::DFS_Acc(
-			USRefl::ElemList<>{},
-			[](auto acc, auto baseType, size_t) {
-				return baseType.fields.Accumulate(acc, [](auto acc, auto field) {
-					if constexpr (field.is_func)
-						return acc.Push(field);
-					else
-						return acc;
-				});
-			}
-		);
+	// sizeof...(Ns) is the field number
+	template<typename T, size_t... Ns>
+	constexpr auto GetOverloadFuncListTupleImpl(std::index_sequence<Ns...>) {
+		if constexpr (USRefl::TypeInfo<T>::bases.size == 0) {
+			constexpr auto names = std::array{ USRefl::TypeInfo<T>::fields.template Get<Ns>().name... };
 
-		constexpr auto overloadNames = funcFields.Accumulate(
-			std::array<std::string_view, funcFields.size>{},
-			[idx = static_cast<size_t>(0)](auto acc, auto func) mutable {
-			if (func.name != USRefl::Name::constructor) {
-				acc[idx] = func.name;
-				for (size_t i = 0; i < idx; i++) {
-					if (func.name == acc[i]) {
-						acc[idx] = "";
-						break;
+			constexpr auto indices = USRefl::TypeInfo<T>::fields.Accumulate(
+				std::array<size_t, USRefl::TypeInfo<T>::fields.size>{},
+				[names, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
+					if constexpr (field.is_func) {
+						acc[idx] = idx;
+						for (size_t i = 0; i < idx; i++) {
+							if (field.name == names[i]
+								|| field.name == USRefl::Name::constructor
+								|| field.name == USRefl::Name::destructor)
+							{
+								acc[idx] = static_cast<size_t>(-1);
+								break;
+							}
+						}
 					}
+					else
+						acc[idx] = static_cast<size_t>(-1);
+					
+					idx++;
+					return acc;
 				}
-			}
-			else
-				acc[idx] = "";
-			idx++;
-			return acc;
+			);
+			return GetOverloadFuncListTupleRec<T>(
+				std::tuple<>{},
+				std::index_sequence<Ns...>{},
+				std::index_sequence<indices[Ns]...>{}
+			);
 		}
-		);
-
-		constexpr auto indices = funcFields.Accumulate(
-			std::array<size_t, OverloadNum>{},
-			[overloadNames, idx = static_cast<size_t>(0), indicesCur = static_cast<size_t>(0)] (auto acc, auto func) mutable {
-				if (!overloadNames[idx].empty())
-					acc[indicesCur++] = idx;
-				idx++;
-				return acc;
-			}
-		);
-
-		constexpr auto name = funcFields.Get<indices[Index]>().name;
-
-		constexpr auto masks = funcFields.Accumulate(
-			std::array<bool, funcFields.size>{},
-			[name, idx = static_cast<size_t>(0)](auto acc, auto func) mutable {
-				acc[idx++] = func.name == name;
-				return acc;
-			}
-		);
-
-		constexpr auto funcList = funcFields.template Accumulate<masks[Ns]...>(
-			USRefl::ElemList<>{},
-			[](auto acc, auto func) {
-				return acc.Push(func);
-			}
-		);
-
-		return funcList;
-	}
-	
-	template<typename T, size_t... Ns, size_t... Ms>
-	constexpr auto GetOverloadFuncListTuple(std::index_sequence<Ns...>, std::index_sequence<Ms...>) {
-		constexpr size_t OverloadNum = sizeof...(Ms);
-		return std::tuple{ GetOverloadFuncListAt<T, OverloadNum, Ms>(std::index_sequence<Ns...>{})... };
+		else
+			static_assert(false, "DFS");
 	}
 
 	template<typename T>
-	constexpr auto GetOverload() {
-		constexpr auto funcNumOverloadNum = GetFuncNumOverloadNum<T>();
-
-		return GetOverloadFuncListTuple<T>(
-			std::make_index_sequence<std::get<0>(funcNumOverloadNum)>{},
-			std::make_index_sequence<std::get<1>(funcNumOverloadNum)>{}
-		);
+	constexpr auto GetOverloadFuncListTuple() {
+		return GetOverloadFuncListTupleImpl<T>(std::make_index_sequence<USRefl::TypeInfo<T>::fields.size>());
 	}
 
 	template<typename T>
 	void RegisterClass(lua_State* L) {
 		sol::state_view lua(L);
 		sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
-		detail::NameInfo nameInfo(Ubpa::USRefl::TypeInfo<T>::name);
+		NameInfo nameInfo(USRefl::TypeInfo<T>::name);
 		
 		sol::usertype<T> type = lua.new_usertype<T>(nameInfo.rawName,
-			detail::GetInits<T>(std::make_index_sequence<Ubpa::USRefl::TypeInfo<T>::fields.size>{}));
+			GetInits<T>(std::make_index_sequence<USRefl::TypeInfo<T>::fields.size>{}));
 
 		sol::table typeinfo_type = typeinfo[nameInfo.rawName].get_or_create<sol::table>();
 		sol::table typeinfo_type_attrs = typeinfo_type["attrs"].get_or_create<sol::table>();
@@ -192,7 +152,7 @@ namespace Ubpa::ULuaPP::detail {
 				typeinfo_type_attrs[attr.name] = true; // default
 		});
 
-		constexpr auto overloadFuncListTuple = detail::GetOverload<T>();
+		constexpr auto overloadFuncListTuple = GetOverloadFuncListTuple<T>();
 		std::apply([&](auto... funcLists) {
 			(std::apply([&](auto... funcs) {
 				auto packedFuncs = sol::overload(funcs.value...);
@@ -259,7 +219,7 @@ namespace Ubpa::ULuaPP::detail {
 	template<typename T>
 	void RegisterEnum(lua_State* L) {
 		sol::state_view lua(L);
-		detail::NameInfo nameInfo(Ubpa::USRefl::TypeInfo<T>::name);
+		NameInfo nameInfo(USRefl::TypeInfo<T>::name);
 		sol::table typeinfo = lua["USRefl_TypeInfo"].get_or_create<sol::table>();
 		sol::table typeinfo_enum = typeinfo[nameInfo.rawName].get_or_create<sol::table>();
 		sol::table typeinfo_enum_attrs = typeinfo_enum["attrs"].get_or_create<sol::table>();

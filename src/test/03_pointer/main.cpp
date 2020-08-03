@@ -54,16 +54,18 @@ int main() {
 	lua_State* L = luaL_newstate(); /* opens Lua */
 	luaL_openlibs(L); /* opens the standard libraries */
 	Ubpa::ULuaPP::Register<Point>(L);
-	sol::state_view lua(L);
-	const char code[] = R"(
+	{
+		sol::state_view lua(L);
+		const char code[] = R"(
 p0 = Point.new(3, 4)
 p1 = Point.new(1, 2)
 p2 = p0:AddPointer(p1) -- amazing
 print(p2.x, p2.y)
 )";
-	cout << code << endl
-		<< "----------------------------" << endl;
-	lua.script(code);
+		cout << code << endl
+			<< "----------------------------" << endl;
+		lua.script(code);
+	}
 
 	while (fgets(buff, sizeof(buff), stdin) != NULL) {
 		error = luaL_loadstring(L, buff) || lua_pcall(L, 0, 0, 0);

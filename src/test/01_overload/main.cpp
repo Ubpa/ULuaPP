@@ -111,8 +111,9 @@ int main() {
 	luaL_openlibs(L); /* opens the standard libraries */
 
 	Ubpa::ULuaPP::Register<Point>(L);
-	sol::state_view lua(L);
-	const char code[] = R"(
+	{
+		sol::state_view lua(L);
+		const char code[] = R"(
 p0 = Point.new(3, 4)                                       -- constructor
 p1 = Point.new()                                           -- constructor overload
 print(p0.x, p0.y)                                          -- get field
@@ -132,9 +133,10 @@ print(p2.x, p2.y)
 p3 = p0 - p1                                               -- meta function
 print(p3.x, p3.y)
 )";
-	cout << code << endl
-		<< "----------------------------" << endl;
-	lua.script(code);
+		cout << code << endl
+			<< "----------------------------" << endl;
+		lua.script(code);
+	}
 
 	while (fgets(buff, sizeof(buff), stdin) != NULL) {
 		error = luaL_loadstring(L, buff) || lua_pcall(L, 0, 0, 0);
