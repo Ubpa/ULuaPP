@@ -32,15 +32,35 @@ namespace Ubpa::ULuaPP::detail {
 		std::string rawName;
 	};
 
+	template<typename T>
+	constexpr auto DFS_GetFields() {
+		if constexpr (USRefl::TypeInfo<T>::bases.size > 0) {
+			return USRefl::TypeInfo<T>::DFS_Acc(
+				USRefl::ElemList<>{},
+				[](auto acc, auto t, size_t) {
+					return t.fields.Accumulate(
+						acc,
+						[](auto acc, auto field) {
+							return acc.Push(field);
+						}
+					);
+				}
+			);
+		}
+		else
+			return USRefl::TypeInfo<T>::fields;
+	}
+
 	template<typename T, size_t... Ns>
 	constexpr auto GetInits(std::index_sequence<Ns...>) {
-		constexpr auto masks = USRefl::TypeInfo<T>::fields.Accumulate(
-			std::array<bool, USRefl::TypeInfo<T>::fields.size>{},
+		constexpr auto fields = USRefl::TypeInfo<T>::fields;
+		constexpr auto masks = fields.Accumulate(
+			std::array<bool, fields.size>{},
 			[idx = 0](auto&& acc, auto field) mutable {
 			acc[idx++] = field.name == USRefl::Name::constructor;
 			return std::forward<decltype(acc)>(acc);
 		});
-		constexpr auto constructors = USRefl::TypeInfo<T>::fields.template Accumulate<masks[Ns]...>(
+		constexpr auto constructors = fields.template Accumulate<masks[Ns]...>(
 			std::tuple<>{},
 			[](auto acc, auto field) {
 				return std::tuple_cat(acc, std::tuple{ field.value });
@@ -57,17 +77,18 @@ namespace Ubpa::ULuaPP::detail {
 	// sizeof...(Ns) is the field number
 	template<typename T, typename Acc, size_t... Ns, size_t... Indices>
 	constexpr auto GetOverloadFuncListTupleRec(Acc acc, std::index_sequence<Ns...>, std::index_sequence<Indices...>) {
+		constexpr auto fields = DFS_GetFields<T>();
 		if constexpr (sizeof...(Indices) > 0) {
 			using IST = USRefl::detail::IntegerSequenceTraits<std::index_sequence<Indices...>>;
 			if constexpr (IST::head != static_cast<size_t>(-1)) {
-				constexpr auto masks = USRefl::TypeInfo<T>::fields.Accumulate(
-					std::array<bool, USRefl::TypeInfo<T>::fields.size>{},
-					[idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
-						acc[idx++] = field.name == USRefl::TypeInfo<T>::fields.template Get<IST::head>().name;
+				constexpr auto masks = fields.Accumulate(
+					std::array<bool, fields.size>{},
+					[fields, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
+						acc[idx++] = field.name == fields.template Get<IST::head>().name;
 						return acc;
 					}
 				);
-				constexpr auto funclist = USRefl::TypeInfo<T>::fields.template Accumulate<masks[Ns]...>(
+				constexpr auto funclist = fields.template Accumulate<masks[Ns]...>(
 					USRefl::ElemList<>{},
 					[](auto acc, auto func) {
 						return acc.Push(func);
@@ -93,44 +114,42 @@ namespace Ubpa::ULuaPP::detail {
 	// sizeof...(Ns) is the field number
 	template<typename T, size_t... Ns>
 	constexpr auto GetOverloadFuncListTupleImpl(std::index_sequence<Ns...>) {
-		if constexpr (USRefl::TypeInfo<T>::bases.size == 0) {
-			constexpr auto names = std::array{ USRefl::TypeInfo<T>::fields.template Get<Ns>().name... };
+		constexpr auto fields = DFS_GetFields<T>();
+		constexpr auto names = std::array{ fields.template Get<Ns>().name... };
 
-			constexpr auto indices = USRefl::TypeInfo<T>::fields.Accumulate(
-				std::array<size_t, USRefl::TypeInfo<T>::fields.size>{},
-				[names, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
-					if constexpr (field.is_func) {
-						acc[idx] = idx;
-						for (size_t i = 0; i < idx; i++) {
-							if (field.name == names[i]
-								|| field.name == USRefl::Name::constructor
-								|| field.name == USRefl::Name::destructor)
-							{
-								acc[idx] = static_cast<size_t>(-1);
-								break;
-							}
+		constexpr auto indices = fields.Accumulate(
+			std::array<size_t, fields.size>{},
+			[fields, names, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
+				if constexpr (field.is_func) {
+					acc[idx] = idx;
+					for (size_t i = 0; i < idx; i++) {
+						if (field.name == names[i]
+							|| field.name == USRefl::Name::constructor
+							|| field.name == USRefl::Name::destructor)
+						{
+							acc[idx] = static_cast<size_t>(-1);
+							break;
 						}
 					}
-					else
-						acc[idx] = static_cast<size_t>(-1);
-					
-					idx++;
-					return acc;
 				}
-			);
-			return GetOverloadFuncListTupleRec<T>(
-				std::tuple<>{},
-				std::index_sequence<Ns...>{},
-				std::index_sequence<indices[Ns]...>{}
-			);
-		}
-		else
-			static_assert(false, "DFS");
+				else
+					acc[idx] = static_cast<size_t>(-1);
+				
+				idx++;
+				return acc;
+			}
+		);
+		return GetOverloadFuncListTupleRec<T>(
+			std::tuple<>{},
+			std::index_sequence<Ns...>{},
+			std::index_sequence<indices[Ns]...>{}
+		);
 	}
 
 	template<typename T>
 	constexpr auto GetOverloadFuncListTuple() {
-		return GetOverloadFuncListTupleImpl<T>(std::make_index_sequence<USRefl::TypeInfo<T>::fields.size>());
+		constexpr auto fields = DFS_GetFields<T>();
+		return GetOverloadFuncListTupleImpl<T>(std::make_index_sequence<fields.size>());
 	}
 
 	template<typename T>
