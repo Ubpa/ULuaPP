@@ -3,23 +3,24 @@
 using namespace Ubpa::USRefl;
 using namespace std;
 
-struct A { float a; };
-struct B : A { float b; };
+template<typename T>
+struct A { T a; };
+struct B : A<bool> { float b; };
 
-template<>
-struct Ubpa::USRefl::TypeInfo<A>
-	: Ubpa::USRefl::TypeInfoBase<A>
+template<typename T>
+struct Ubpa::USRefl::TypeInfo<A<T>>
+	: Ubpa::USRefl::TypeInfoBase<A<T>>
 {
 	static constexpr AttrList attrs = {};
 
 	static constexpr FieldList fields = {
-		Field{"a", &A::a},
+		Field{"a", &A<T>::a},
 	};
 };
 
 template<>
 struct Ubpa::USRefl::TypeInfo<B>
-	: Ubpa::USRefl::TypeInfoBase<B, Base<A, true>>
+	: Ubpa::USRefl::TypeInfoBase<B, Base<A<bool>, true>>
 {
 	static constexpr AttrList attrs = {};
 
@@ -38,7 +39,7 @@ int main() {
 		sol::state_view lua(L);
 		const char code[] = R"(
 b = B.new()
-b.a = 1
+b.a = true
 b.b = 2
 print(b.a, b.b)
 )";

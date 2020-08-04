@@ -74,46 +74,77 @@ namespace Ubpa::ULuaPP::detail {
 			return sol::no_constructor;
 	}
 
-	// sizeof...(Ns) is the field number
-	template<typename T, typename Acc, size_t... Ns, size_t... Indices>
-	constexpr auto GetOverloadFuncListTupleRec(Acc acc, std::index_sequence<Ns...>, std::index_sequence<Indices...>) {
-		constexpr auto fields = DFS_GetFields<T>();
-		if constexpr (sizeof...(Indices) > 0) {
-			using IST = USRefl::detail::IntegerSequenceTraits<std::index_sequence<Indices...>>;
-			if constexpr (IST::head != static_cast<size_t>(-1)) {
-				constexpr auto masks = fields.Accumulate(
-					std::array<bool, fields.size>{},
-					[fields, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
-						acc[idx++] = field.name == fields.template Get<IST::head>().name;
-						return acc;
-					}
-				);
-				constexpr auto funclist = fields.template Accumulate<masks[Ns]...>(
-					USRefl::ElemList<>{},
-					[](auto acc, auto func) {
-						return acc.Push(func);
-					}
-				);
-				return GetOverloadFuncListTupleRec<T>(
-					std::tuple_cat(acc, std::tuple{ funclist }),
-					std::index_sequence<Ns...>{},
-					IST::tail
-				);
-			}
+	template<typename T, typename FuncList>
+	void SetOverloadFuncs(sol::usertype<T>& type, sol::table& typeinfo_type_fields, FuncList funclist) {
+		std::apply([&](auto... funcs) {
+			auto packedFuncs = sol::overload(funcs.value...);
+			auto name = std::get<0>(std::tuple{ funcs... }).name;
+			if (name == "operator+")
+				type[sol::meta_function::addition] = packedFuncs;
+			else if (name == "operator-")
+				type[sol::meta_function::subtraction] = packedFuncs;
+			else if (name == "operator*")
+				type[sol::meta_function::multiplication] = packedFuncs;
+			else if (name == "operator/")
+				type[sol::meta_function::division] = packedFuncs;
+			else if (name == "operator<")
+				type[sol::meta_function::less_than] = packedFuncs;
+			else if (name == "operator<=")
+				type[sol::meta_function::less_than_or_equal_to] = packedFuncs;
+			else if (name == "operator==")
+				type[sol::meta_function::equal_to] = packedFuncs;
+			else if (name == "operator[]")
+				type[sol::meta_function::index] = packedFuncs;
+			else if (name == "operator()")
+				type[sol::meta_function::call] = packedFuncs;
 			else
-				return GetOverloadFuncListTupleRec<T>(
-					acc,
-					std::index_sequence<Ns...>{},
-					IST::tail
-				);
+				type[name] = packedFuncs;
+			constexpr bool needPostfix = sizeof...(funcs) > 0;
+			USRefl::ElemList{ funcs... }.ForEach([&, idx = static_cast<size_t>(0)](auto func)mutable{
+				std::string name = std::string(func.name) + (needPostfix ? ("_" + std::to_string(idx)) : "");
+				sol::table typeinfo_type_fields_field = typeinfo_type_fields[name].get_or_create<sol::table>();
+				sol::table typeinfo_type_fields_field_attrs = typeinfo_type_fields_field["attrs"].get_or_create<sol::table>();
+				if constexpr (func.attrs.size > 0) {
+					func.attrs.ForEach([&](auto attr) {
+						if constexpr (attr.has_value)
+							typeinfo_type_fields_field_attrs[attr.name] = attr.value;
+						else
+							typeinfo_type_fields_field_attrs[attr.name] = true; // default
+						});
+				}
+				idx++;
+			});
+			}, funclist.elems);
+	}
+
+	// sizeof...(Ns) is the field number
+	template<size_t Index, typename T, size_t... Ns>
+	void OptionalSetOverloadFuncs(
+		sol::usertype<T>& type, sol::table& typeinfo_type_fields,
+		std::index_sequence<Ns...>
+	) {
+		if constexpr (Index != static_cast<size_t>(-1)) {
+			constexpr auto fields = DFS_GetFields<T>();
+			constexpr auto name = fields.template Get<Index>().name;
+			constexpr auto masks = fields.Accumulate(
+				std::array<bool, fields.size>{},
+				[fields, name, idx = static_cast<size_t>(0)](auto acc, auto field) mutable {
+				acc[idx++] = field.name == name;
+				return acc;
+			});
+			constexpr auto funclist = fields.template Accumulate<masks[Ns]...>(
+				USRefl::ElemList<>{},
+				[](auto acc, auto func) {
+					return acc.Push(func);
+				}
+			);
+			SetOverloadFuncs(type, typeinfo_type_fields, funclist);
 		}
-		else
-			return acc;
 	}
 
 	// sizeof...(Ns) is the field number
 	template<typename T, size_t... Ns>
-	constexpr auto GetOverloadFuncListTupleImpl(std::index_sequence<Ns...>) {
+	constexpr auto SetFuncsImpl(sol::usertype<T>& type, sol::table& typeinfo_type_fields, std::index_sequence<Ns...>) {
 		constexpr auto fields = DFS_GetFields<T>();
 		constexpr auto names = std::array{ fields.template Get<Ns>().name... };
 
@@ -139,17 +170,19 @@ namespace Ubpa::ULuaPP::detail {
 				return acc;
 			}
 		);
-		return GetOverloadFuncListTupleRec<T>(
-			std::tuple<>{},
-			std::index_sequence<Ns...>{},
-			std::index_sequence<indices[Ns]...>{}
-		);
+		(OptionalSetOverloadFuncs<indices[Ns]>(
+			type, typeinfo_type_fields,
+			std::index_sequence<Ns...>{}
+		), ...);
 	}
 
 	template<typename T>
-	constexpr auto GetOverloadFuncListTuple() {
+	constexpr auto SetFuncs(sol::usertype<T>& type, sol::table& typeinfo_type_fields) {
 		constexpr auto fields = DFS_GetFields<T>();
-		return GetOverloadFuncListTupleImpl<T>(std::make_index_sequence<fields.size>());
+		return SetFuncsImpl(
+			type, typeinfo_type_fields,
+			std::make_index_sequence<fields.size>()
+		);
 	}
 
 	template<typename T>
@@ -171,48 +204,7 @@ namespace Ubpa::ULuaPP::detail {
 				typeinfo_type_attrs[attr.name] = true; // default
 		});
 
-		constexpr auto overloadFuncListTuple = GetOverloadFuncListTuple<T>();
-		std::apply([&](auto... funcLists) {
-			(std::apply([&](auto... funcs) {
-				auto packedFuncs = sol::overload(funcs.value...);
-				auto name = std::get<0>(std::tuple{ funcs... }).name;
-				if (name == "operator+")
-					type[sol::meta_function::addition] = packedFuncs;
-				else if (name == "operator-")
-					type[sol::meta_function::subtraction] = packedFuncs;
-				else if (name == "operator*")
-					type[sol::meta_function::multiplication] = packedFuncs;
-				else if (name == "operator/")
-					type[sol::meta_function::division] = packedFuncs;
-				else if (name == "operator<")
-					type[sol::meta_function::less_than] = packedFuncs;
-				else if (name == "operator<=")
-					type[sol::meta_function::less_than_or_equal_to] = packedFuncs;
-				else if (name == "operator==")
-					type[sol::meta_function::equal_to] = packedFuncs;
-				else if (name == "operator[]")
-					type[sol::meta_function::index] = packedFuncs;
-				else if (name == "operator()")
-					type[sol::meta_function::call] = packedFuncs;
-				else
-					type[name] = packedFuncs;
-				constexpr bool needPostfix = sizeof...(funcs) > 0;
-				USRefl::ElemList{ funcs... }.ForEach([&, idx = static_cast<size_t>(0)](auto func)mutable{
-					std::string name = std::string(func.name) + (needPostfix ? ("_" + std::to_string(idx)) : "");
-					sol::table typeinfo_type_fields_field = typeinfo_type_fields[name].get_or_create<sol::table>();
-					sol::table typeinfo_type_fields_field_attrs = typeinfo_type_fields_field["attrs"].get_or_create<sol::table>();
-					if constexpr (func.attrs.size > 0) {
-						func.attrs.ForEach([&](auto attr) {
-							if constexpr (attr.has_value)
-								typeinfo_type_fields_field_attrs[attr.name] = attr.value;
-							else
-								typeinfo_type_fields_field_attrs[attr.name] = true; // default
-						});
-					}
-					idx++;
-				});
-			}, funcLists.elems), ...);
-		}, overloadFuncListTuple);
+		SetFuncs(type, typeinfo_type_fields);
 
 		// variable
 		USRefl::TypeInfo<T>::DFS_ForEach([&](auto t, size_t) {
