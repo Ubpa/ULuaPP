@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-project(ULuaPP VERSION 0.1.4)
+project(ULuaPP VERSION 0.1.5)
 message(STATUS "[Project] ${PROJECT_NAME}")
 
 include(cmake/InitUCMake.cmake)
@@ -10,7 +10,7 @@ Ubpa_InitProject()
 
 Ubpa_AddDep(ULua 0.1.0)
 Ubpa_AddDep(USRefl 0.5.2)
-Ubpa_AddDep(UTemplate 0.4.6)
+Ubpa_AddDep(UTemplate 0.4.7)
 
 Ubpa_AddSubDirsRec(src)
 
