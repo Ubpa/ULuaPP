@@ -33,20 +33,7 @@ struct Ubpa::USRefl::TypeInfo<Point>
 			}
 		},
 		Field{Name::constructor, WrapConstructor<Point()>()},
-		Field{Name::constructor, WrapConstructor<Point(float, float)>(),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "x"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "y"},
-					}
-				},
-			}
-		},
+		Field{Name::constructor, WrapConstructor<Point(float, float)>(),},
 		Field{"Sum", &Point::Sum},
 	};
 };
