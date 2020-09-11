@@ -2,7 +2,7 @@
 
 #include <USRefl/USRefl.h>
 
-#include "_deps/sol2/sol.hpp"
+#include <sol/sol.hpp>
 
 #include <array>
 #include <string>

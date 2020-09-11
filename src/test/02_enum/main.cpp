@@ -1,5 +1,7 @@
 #include <ULuaPP/ULuaPP.h>
 
+#include <iostream>
+
 using namespace Ubpa::USRefl;
 using namespace std;
 
