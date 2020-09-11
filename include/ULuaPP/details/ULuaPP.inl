@@ -79,6 +79,7 @@ namespace Ubpa::ULuaPP::detail {
 		std::apply([&](auto... funcs) {
 			auto packedFuncs = sol::overload(funcs.value...);
 			auto name = std::get<0>(std::tuple{ funcs... }).name;
+			assert(name != "voidp");
 			if (name == "operator+")
 				type[sol::meta_function::addition] = packedFuncs;
 			else if (name == "operator-")
@@ -193,6 +194,9 @@ namespace Ubpa::ULuaPP::detail {
 		
 		sol::usertype<T> type = lua.new_usertype<T>(nameInfo.rawName,
 			GetInits<T>(std::make_index_sequence<USRefl::TypeInfo<T>::fields.size>{}));
+
+		// set void* cast
+		type["voidp"] = [](void* p) {return (T*)p; };
 
 		sol::table typeinfo_type = typeinfo[nameInfo.rawName].get_or_create<sol::table>();
 		sol::table typeinfo_type_attrs = typeinfo_type["attrs"].get_or_create<sol::table>();
