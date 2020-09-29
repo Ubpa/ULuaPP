@@ -1,0 +1,5 @@
+Ubpa_DownloadZip(
+  https://cdn.jsdelivr.net/gh/Ubpa/UData@master/ULuaPP/sol/sol_20200911.zip
+  sol_20200911.zip
+  SHA256 8C55ACA894FD8E0EDDE0ED204497B4E41DB188969EBD1906F35C5D86CB9F16DB
+)
