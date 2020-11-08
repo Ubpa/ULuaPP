@@ -37,63 +37,35 @@ struct Point {
 };
 
 template<>
-struct Ubpa::USRefl::TypeInfo<Point>
-	: Ubpa::USRefl::TypeInfoBase<Point>
+struct Ubpa::USRefl::TypeInfo<A> :
+	TypeInfoBase<A>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[2] = "A";
+#endif
 	static constexpr AttrList attrs = {};
+	static constexpr FieldList fields = {};
+};
 
+template<>
+struct Ubpa::USRefl::TypeInfo<Point> :
+	TypeInfoBase<Point>
+{
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[6] = "Point";
+#endif
+	static constexpr AttrList attrs = {};
 	static constexpr FieldList fields = {
-		Field{"x", &Point::x},
-		Field{"y", &Point::y},
-		Field{Name::constructor, WrapConstructor<Point(float, float)>(),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "x"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "y"},
-					}
-				},
-			}
-		},
-		Field{"AddPointer", &Point::AddPointer,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "rhs"},
-					}
-				},
-			}
-		},
-		Field{"AddPointer2", &Point::AddPointer2,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "rhs"},
-					}
-				},
-			}
-		},
-		Field{"This", &Point::This},
-		Field{"ThisVoid", &Point::ThisVoid},
-		Field{"Print", &Point::Print,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0)},
-			}
-		},
-		Field{"Print2", &Point::Print2,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0)},
-			}
-		},
-		Field{"Print3", &Point::Print3,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0)},
-			}
-		},
+		Field {TSTR("x"), &Type::x},
+		Field {TSTR("y"), &Type::y},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type(float, float)>()},
+		Field {TSTR("AddPointer"), &Type::AddPointer},
+		Field {TSTR("This"), &Type::This},
+		Field {TSTR("ThisVoid"), &Type::ThisVoid},
+		Field {TSTR("AddPointer2"), &Type::AddPointer2},
+		Field {TSTR("Print"), &Type::Print},
+		Field {TSTR("Print2"), &Type::Print2},
+		Field {TSTR("Print3"), &Type::Print3},
 	};
 };
 

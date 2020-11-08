@@ -5,32 +5,24 @@
 using namespace Ubpa::USRefl;
 using namespace std;
 
-enum class [[meta(520)]] Color {
-	RED [[meta("a")]],
-	GREEN [[meta("b")]],
-	BLUE [[meta("c")]]
-};
+namespace Test {
+	struct Point {
+		float x;
+		float y;
+	};
+}
 
 template<>
-struct Ubpa::USRefl::TypeInfo<Color> :
-	TypeInfoBase<Color>
+struct Ubpa::USRefl::TypeInfo<Test::Point> :
+	TypeInfoBase<Test::Point>
 {
 #ifdef UBPA_USREFL_NOT_USE_NAMEOF
-	static constexpr char name[6] = "Color";
+	static constexpr char name[12] = "Test::Point";
 #endif
-	static constexpr AttrList attrs = {
-		Attr {TSTR("meta"), 520},
-	};
+	static constexpr AttrList attrs = {};
 	static constexpr FieldList fields = {
-		Field {TSTR("RED"), Type::RED, AttrList {
-			Attr {TSTR("meta"), "a"},
-		}},
-		Field {TSTR("GREEN"), Type::GREEN, AttrList {
-			Attr {TSTR("meta"), "b"},
-		}},
-		Field {TSTR("BLUE"), Type::BLUE, AttrList {
-			Attr {TSTR("meta"), "c"},
-		}},
+		Field {TSTR("x"), &Type::x},
+		Field {TSTR("y"), &Type::y},
 	};
 };
 
@@ -39,19 +31,18 @@ int main() {
 	int error;
 	lua_State* L = luaL_newstate(); /* opens Lua */
 	luaL_openlibs(L); /* opens the standard libraries */
-
-	Ubpa::ULuaPP::Register<Color>(L);
-
+	Ubpa::ULuaPP::Register<Test::Point>(L);
 	{
 		sol::state_view lua(L);
 		const char code[] = R"(
-print(Color.RED)
-print(Color.GREEN)
-print(Color.BLUE)
+p = Test.Point.new()
+p.x = 1
+p.y = 2
+print(p.x, p.y)
 )";
 		cout << code << endl
 			<< "----------------------------" << endl;
-		lua.script(code);
+		lua.safe_script(code);
 	}
 
 	while (fgets(buff, sizeof(buff), stdin) != NULL) {

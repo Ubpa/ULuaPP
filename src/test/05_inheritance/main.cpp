@@ -10,24 +10,29 @@ struct A { T a; };
 struct B : A<bool> { float b; };
 
 template<typename T>
-struct Ubpa::USRefl::TypeInfo<A<T>>
-	: Ubpa::USRefl::TypeInfoBase<A<T>>
+struct Ubpa::USRefl::TypeInfo<A<T>> :
+	TypeInfoBase<A<T>>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	// [!] all instance types have the same name
+	static constexpr char name[2] = "A";
+#endif
 	static constexpr AttrList attrs = {};
-
 	static constexpr FieldList fields = {
-		Field{"a", &A<T>::a},
+		Field {TSTR("a"), &A<T>::a},
 	};
 };
 
 template<>
-struct Ubpa::USRefl::TypeInfo<B>
-	: Ubpa::USRefl::TypeInfoBase<B, Base<A<bool>, true>>
+struct Ubpa::USRefl::TypeInfo<B> :
+	TypeInfoBase<B, Base<A<bool>>>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[2] = "B";
+#endif
 	static constexpr AttrList attrs = {};
-
 	static constexpr FieldList fields = {
-		Field{"b", &B::b},
+		Field {TSTR("b"), &Type::b},
 	};
 };
 

@@ -7,7 +7,7 @@ using namespace std;
 
 struct [[size(8)]] Point {
 	Point() : x{ 0.f }, y{ 0.f }{}
-	Point(float x, float y) : x{ x }, y{ y }{}
+	Point(float x, float y = 1.f) : x{ x }, y{ y }{}
 	[[not_serialize]]
 	float x;
 	[[info("hello")]]
@@ -16,27 +16,29 @@ struct [[size(8)]] Point {
 };
 
 template<>
-struct Ubpa::USRefl::TypeInfo<Point>
-	: Ubpa::USRefl::TypeInfoBase<Point>
+struct Ubpa::USRefl::TypeInfo<Point> :
+	TypeInfoBase<Point>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[6] = "Point";
+#endif
 	static constexpr AttrList attrs = {
-		Attr{"size", 8},
+		Attr {TSTR("size"), 8},
 	};
-
 	static constexpr FieldList fields = {
-		Field{"x", &Point::x,
-			AttrList{
-				Attr{"not_serialize"},
-			}
-		},
-		Field{"y", &Point::y,
-			AttrList{
-				Attr{"info", "hello"},
-			}
-		},
-		Field{Name::constructor, WrapConstructor<Point()>()},
-		Field{Name::constructor, WrapConstructor<Point(float, float)>(),},
-		Field{"Sum", &Point::Sum},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type()>()},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type(float, float)>(), AttrList {
+			Attr {TSTR(UMeta::default_functions), std::tuple {
+				WrapConstructor<Type(float)>()
+			}},
+		}},
+		Field {TSTR("x"), &Type::x, AttrList {
+			Attr {TSTR("not_serialize")},
+		}},
+		Field {TSTR("y"), &Type::y, AttrList {
+			Attr {TSTR("info"), "hello"},
+		}},
+		Field {TSTR("Sum"), &Type::Sum},
 	};
 };
 
@@ -51,23 +53,26 @@ int main() {
 		sol::state_view lua(L);
 		lua["ptr"] = ptr;
 		const char code[] = R"(
-p0 = Point.new(3, 4)                                       -- constructor
-p1 = Point.new()                                           -- constructor overload
-print(p0.x, p0.y)                                          -- get field
-p1.x = 3                                                   -- set field
+p0 = Point.new(3, 4)                                        -- constructor
+p1 = Point.new()                                            -- constructor overload
+p2 = Point.new(2)                                           -- constructor default
+print(p0.x, p0.y)                                           -- get field
+print(p1.x, p1.y)                                           -- get field
+print(p2.x, p2.y)                                           -- get field
+p1.x = 3                                                    -- set field
 print(p1.x, p1.y)
-print(p0:Sum())                                            -- non-static member function
-print(USRefl_TypeInfo.Point.attrs.size)                    -- USRefl type attrs
-print(USRefl_TypeInfo.Point.fields.x.attrs.not_serialize)  -- USRefl field attrs
-print(USRefl_TypeInfo.Point.fields.y.attrs.info)           -- USRefl type attrs
-p2 = Point.voidp(ptr)
-p2.x = 520
-p2.y = 1024
-print(p2.x, p2.y)
+print(p0:Sum())                                             -- non-static member function
+--print(USRefl_TypeInfo.Point.attrs.size)                   -- USRefl type attrs
+--print(USRefl_TypeInfo.Point.fields.x.attrs.not_serialize) -- USRefl field attrs
+--print(USRefl_TypeInfo.Point.fields.y.attrs.info)          -- USRefl type attrs
+p3 = Point.voidp(ptr)
+p3.x = 520
+p3.y = 1024
+print(p3.x, p3.y)
 )";
 		cout << code << endl
 			<< "----------------------------" << endl;
-		lua.script(code);
+		lua.safe_script(code);
 	}
 
 	while (fgets(buff, sizeof(buff), stdin) != NULL) {

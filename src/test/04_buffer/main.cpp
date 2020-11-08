@@ -45,91 +45,22 @@ private:
 };
 
 template<>
-struct Ubpa::USRefl::TypeInfo<Buffer>
-	: Ubpa::USRefl::TypeInfoBase<Buffer>
+struct Ubpa::USRefl::TypeInfo<Buffer> :
+	TypeInfoBase<Buffer>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[7] = "Buffer";
+#endif
 	static constexpr AttrList attrs = {};
-
 	static constexpr FieldList fields = {
-		Field{Name::constructor, WrapConstructor<Buffer(size_t)>(),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "s"},
-					}
-				},
-			}
-		},
-		Field{Name::destructor, WrapDestructor<Buffer>()},
-		Field{"GetNumber", &Buffer::GetNumber,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-			}
-		},
-		Field{"SetNumber", &Buffer::SetNumber,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "value"},
-					}
-				},
-			}
-		},
-		Field{"InitTable", static_cast<void(Buffer::*)(size_t)>(&Buffer::InitTable),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-			}
-		},
-		Field{"InitTable", static_cast<void(Buffer::*)(size_t, sol::table)>(&Buffer::InitTable),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "value"},
-					}
-				},
-			}
-		},
-		Field{"GetTable", &Buffer::GetTable,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-			}
-		},
-		Field{"SetTable", &Buffer::SetTable,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "offset"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "value"},
-					}
-				},
-			}
-		},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type(size_t)>()},
+		Field {TSTR(UMeta::destructor), WrapDestructor<Type>()},
+		Field {TSTR("GetNumber"), &Type::GetNumber},
+		Field {TSTR("SetNumber"), &Type::SetNumber},
+		Field {TSTR("InitTable"), static_cast<void(Type::*)(size_t)>(&Type::InitTable)},
+		Field {TSTR("InitTable"), static_cast<void(Type::*)(size_t, sol::table)>(&Type::InitTable)},
+		Field {TSTR("GetTable"), &Type::GetTable},
+		Field {TSTR("SetTable"), &Type::SetTable},
 	};
 };
 

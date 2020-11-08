@@ -27,82 +27,34 @@ struct [[size(8)]] Point {
 };
 
 template<>
-struct Ubpa::USRefl::TypeInfo<Point>
-	: Ubpa::USRefl::TypeInfoBase<Point>
+struct Ubpa::USRefl::TypeInfo<Point> :
+	TypeInfoBase<Point>
 {
+#ifdef UBPA_USREFL_NOT_USE_NAMEOF
+	static constexpr char name[6] = "Point";
+#endif
 	static constexpr AttrList attrs = {
-		Attr{"size", 8},
+		Attr {TSTR("size"), 8},
 	};
-
 	static constexpr FieldList fields = {
-		Field{"x", &Point::x,
-			AttrList{
-				Attr{"not_serialize"},
-			}
-		},
-		Field{"y", &Point::y,
-			AttrList{
-				Attr{"info", "hello"},
-			}
-		},
-		Field{Name::constructor, WrapConstructor<Point()>()},
-		Field{Name::constructor, WrapConstructor<Point(float, float)>(),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "x"},
-					}
-				},
-				Attr{UBPA_USREFL_NAME_ARG(1),
-					AttrList{
-						Attr{Name::name, "y"},
-					}
-				},
-			}
-		},
-		Field{"Sum", static_cast<float(Point::*)()>(&Point::Sum)},
-		Field{"Sum", static_cast<float(Point::*)(float)>(&Point::Sum),
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "z"},
-					}
-				},
-			}
-		},
-		Field{"Min", static_cast<float(Point::*)()>(&Point::Min),
-			AttrList {
-				Attr{"number", 1024},
-			}
-		},
-		Field{"Min", static_cast<float(Point::*)(float)>(&Point::Min),
-			AttrList {
-				Attr{"number", 520},
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "z"},
-					}
-				},
-			}
-		},
-		Field{"Add", &Point::Add,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "rhs"},
-					}
-				},
-			}
-		},
-		Field{"operator-", &Point::operator-,
-			AttrList {
-				Attr{UBPA_USREFL_NAME_ARG(0),
-					AttrList{
-						Attr{Name::name, "rhs"},
-					}
-				},
-			}
-		},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type()>()},
+		Field {TSTR(UMeta::constructor), WrapConstructor<Type(float, float)>()},
+		Field {TSTR("x"), &Type::x, AttrList {
+			Attr {TSTR("not_serialize")},
+		}},
+		Field {TSTR("y"), &Type::y, AttrList {
+			Attr {TSTR("info"), "hello"},
+		}},
+		Field {TSTR("Sum"), static_cast<float(Type::*)()>(&Type::Sum)},
+		Field {TSTR("Sum"), static_cast<float(Type::*)(float)>(&Type::Sum)},
+		Field {TSTR("Min"), static_cast<float(Type::*)()>(&Type::Min), AttrList {
+			Attr {TSTR("number"), 1024},
+		}},
+		Field {TSTR("Min"), static_cast<float(Type::*)(float)>(&Type::Min), AttrList {
+			Attr {TSTR("number"), 520},
+		}},
+		Field {TSTR("Add"), &Type::Add},
+		Field {TSTR("operator-"), &Type::operator-},
 	};
 };
 
@@ -122,14 +74,14 @@ print(p0.x, p0.y)                                          -- get field
 p1.x = 3                                                   -- set field
 print(p1.x, p1.y)
 print(p0:Sum())                                            -- non-static member function
-print(USRefl_TypeInfo.Point.attrs.size)                    -- USRefl type attrs
-print(USRefl_TypeInfo.Point.fields.x.attrs.not_serialize)  -- USRefl field attrs
-print(USRefl_TypeInfo.Point.fields.y.attrs.info)           -- USRefl type attrs
+--print(USRefl_TypeInfo.Point.attrs.size)                    -- USRefl type attrs
+--print(USRefl_TypeInfo.Point.fields.x.attrs.not_serialize)  -- USRefl field attrs
+--print(USRefl_TypeInfo.Point.fields.y.attrs.info)           -- USRefl type attrs
 print(p0:Sum(2))                                           -- non-static member function overload
 print(p0:Min())                                            -- non-static member function overload
 print(p0:Min(-1))                                          -- non-static member function overload
-print(USRefl_TypeInfo.Point.fields.Min_0.attrs.number)     -- non-static member function overload
-print(USRefl_TypeInfo.Point.fields.Min_1.attrs.number)     -- non-static member function overload
+--print(USRefl_TypeInfo.Point.fields.Min_0.attrs.number)     -- non-static member function overload
+--print(USRefl_TypeInfo.Point.fields.Min_1.attrs.number)     -- non-static member function overload
 p2 = p0:Add(p1)                                            -- usertype argument
 print(p2.x, p2.y)
 p3 = p0 - p1                                               -- meta function
