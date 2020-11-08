@@ -20,6 +20,13 @@ Auto register C++ class to Lua with [sol2](https://github.com/ThePhD/sol2) and [
 
 ## Example
 
+Suppose you have a class `Vec`, what you need to do are
+
+- write `TypeInfo<Vec>` (you can use `USRefl::AutoRefl` to generate)
+- register : `Ubpa::ULuaPP::Register<Vec>(lua_State*)` 
+
+That's all.
+
 ```c++
 #include <ULuaPP/ULuaPP.h>
 #include <iostream>
