@@ -8,7 +8,7 @@ Ubpa_InitUCMake()
 
 Ubpa_InitProject()
 
-Ubpa_AddDep(ULua      0.1.1)
+Ubpa_AddDep(ULua      0.1.2)
 Ubpa_AddDep(USRefl    0.7.1)
 Ubpa_AddDep(UTemplate 0.4.9)
 
