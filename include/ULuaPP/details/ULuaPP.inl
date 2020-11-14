@@ -9,6 +9,25 @@
 #include <array>
 #include <string>
 
+namespace Ubpa {
+	template <typename Elem, size_t Extent>
+	class Span;
+}
+
+namespace sol::stack {
+	template <typename Elem, size_t Extent>
+	struct unqualified_getter<nested<Ubpa::Span<Elem, Extent>>> {
+		using T = Ubpa::Span<Elem, Extent>;
+		static T get(lua_State* L, int index, record& tracking) {
+			using Tu = meta::unqualified_t<T>;
+			unqualified_getter<Tu> g;
+			// VC++ has a bad warning here: shut it up
+			(void)g;
+			return g.get(L, index, tracking);
+		}
+	};
+}
+
 namespace Ubpa::ULuaPP::detail {
 	struct NameInfo {
 		NameInfo(std::string_view name) {
