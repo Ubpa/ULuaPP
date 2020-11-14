@@ -1,6 +1,8 @@
 #pragma once
 
 #include <USRefl/USRefl.h>
+#include <UTemplate/Func.h>
+#include <USTL/tuple.h>
 
 #include <sol/sol.hpp>
 
@@ -37,6 +39,9 @@ namespace Ubpa::ULuaPP::detail {
 		std::string rawName;
 	};
 
+	template<typename ArgList>
+	static constexpr bool ContainsRVRef = Length_v<Filter_t<ArgList, std::is_rvalue_reference>> > 0;
+
 	template<typename T>
 	constexpr auto DFS_GetFuncFieldList() {
 		return USRefl::TypeInfo<T>::DFS_Acc(
@@ -45,8 +50,13 @@ namespace Ubpa::ULuaPP::detail {
 				return t.fields.Accumulate(
 					acc,
 					[](auto acc, auto field) {
-						if constexpr (field.is_func)
-							return acc.Push(field);
+						if constexpr (field.is_func) {
+							using Func = std::decay_t<decltype(field.value)>;
+							if constexpr (!ContainsRVRef<FuncTraits_ArgList<Func>>)
+								return acc.Push(field);
+							else
+								return acc;
+						}
 						else
 							return acc;
 					}
@@ -62,10 +72,25 @@ namespace Ubpa::ULuaPP::detail {
 			std::tuple<>{},
 			[](auto acc, auto field) {
 				if constexpr (field.NameIs(TSTR(UMeta::constructor))) {
-					if constexpr (field.attrs.Contains(TSTR(UMeta::default_functions)))
-						return std::tuple_cat(acc, std::tuple{ field.value }, field.attrs.Find(TSTR(UMeta::default_functions)).value);
+					using MainFunc = std::decay_t<decltype(field.value)>;
+					if constexpr (!ContainsRVRef<FuncTraits_ArgList<MainFunc>>) {
+						auto rst = USTL::tuple_append(acc, field.value);
+						if constexpr (field.attrs.Contains(TSTR(UMeta::default_functions))) {
+							const auto& defaultFuncs = field.attrs.Find(TSTR(UMeta::default_functions)).value;
+							auto new_rst = USTL::tuple_accumulate(defaultFuncs, rst, [](auto acc, auto func) {
+								using Func = std::decay_t<decltype(func)>;
+								if constexpr (ContainsRVRef<FuncTraits_ArgList<Func>>)
+									return acc;
+								else
+									return USTL::tuple_append(acc, func);
+								});
+							return new_rst;
+						}
+						else
+							return rst;
+					}
 					else
-						return std::tuple_cat(acc, std::tuple{ field.value });
+						return acc;
 				}
 				else
 					return acc;
@@ -92,10 +117,25 @@ namespace Ubpa::ULuaPP::detail {
 				std::tuple<>{},
 				[](auto acc, auto field) {
 					if constexpr (field.template NameIs<Name>()) {
-						if constexpr (field.attrs.Contains(TSTR(UMeta::default_functions)))
-							return std::tuple_cat(acc, std::tuple{ field.value }, field.attrs.Find(TSTR(UMeta::default_functions)).value);
+						using MainFunc = std::decay_t<decltype(field.value)>;
+						if constexpr (!ContainsRVRef<FuncTraits_ArgList<MainFunc>>) {
+							auto rst = USTL::tuple_append(acc, field.value);
+							if constexpr (field.attrs.Contains(TSTR(UMeta::default_functions))) {
+								const auto& defaultFuncs = field.attrs.Find(TSTR(UMeta::default_functions)).value;
+								auto new_rst = USTL::tuple_accumulate(defaultFuncs, rst, [](auto acc, auto func) {
+									using Func = std::decay_t<decltype(func)>;
+									if constexpr (ContainsRVRef<FuncTraits_ArgList<Func>>)
+										return acc;
+									else
+										return USTL::tuple_append(acc, func);
+								});
+								return new_rst;
+							}
+							else
+								return rst;
+						}
 						else
-							return std::tuple_cat(acc, std::tuple{ field.value });
+							return acc;
 					}
 					else
 						return acc;
