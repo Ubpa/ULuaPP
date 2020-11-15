@@ -272,15 +272,27 @@ namespace Ubpa::ULuaPP::detail {
 	void RegisterEnum(lua_State* L) {
 		sol::state_view lua(L);
 		NameInfo nameInfo(USRefl::TypeInfo<T>::name);
+
 		constexpr auto nvs = USRefl::TypeInfo<T>::fields.Accumulate(
 			std::tuple<>{},
 			[](auto acc, auto field) {
 				return std::tuple_cat(acc, std::tuple{ field.name, field.value });
 			}
 		);
-		std::apply([&](auto... values) {
-			lua.new_enum(nameInfo.rawName, values...);
-		}, nvs);
+
+		if (nameInfo.namespaces.empty()) {
+			std::apply([&](auto... values) {
+				lua.new_enum(nameInfo.rawName, values...);
+			}, nvs);
+		}
+		else {
+			sol::table nsTable = lua[nameInfo.namespaces.front()].get_or_create<sol::table>();
+			for (size_t i = 1; i < nameInfo.namespaces.size(); i++)
+				nsTable = nsTable[nameInfo.namespaces[i]].get_or_create<sol::table>();
+			std::apply([&](auto... values) {
+				nsTable.new_enum(nameInfo.rawName, values...);
+			}, nvs);
+		}
 	}
 }
 
