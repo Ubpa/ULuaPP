@@ -12,5 +12,7 @@ Ubpa_AddTarget(
     ${c_options}
   LIB
     Ubpa::USRefl_core
-	Ubpa::ULua_core
+	  Ubpa::ULua_core
+	  Ubpa::UTemplate_core
+	  Ubpa::USTL_core
 )
